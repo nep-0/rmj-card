@@ -1,0 +1,29 @@
+import Fastify from 'fastify'
+
+import { FormulaClient } from './formula-client.js'
+import { PlayerCardService } from './player-card-service.js'
+
+const app = Fastify({ logger: true })
+const cardService = new PlayerCardService(new FormulaClient())
+
+app.get<{ Params: { name: string; format: 'png' | 'svg' } }>('/api/player-cards/:name.:format', async (request, reply) => {
+  const { name, format } = request.params
+  if (format !== 'png' && format !== 'svg') return reply.code(404).send({ error: 'Supported formats are png and svg' })
+
+  try {
+    const image = await cardService.render(name, format)
+    const extension = format === 'png' ? 'png' : 'svg'
+    return reply
+      .type(format === 'png' ? 'image/png' : 'image/svg+xml')
+      .header('Content-Disposition', `attachment; filename="${encodeURIComponent(name)}-formula-card.${extension}"`)
+      .header('Cache-Control', 'private, max-age=300')
+      .send(image)
+  } catch (error) {
+    request.log.error(error)
+    return reply.code(502).send({ error: error instanceof Error ? error.message : 'Player card generation failed' })
+  }
+})
+
+app.get('/health', async () => ({ status: 'ok' }))
+
+await app.listen({ port: Number(process.env.PORT ?? 3000), host: '0.0.0.0' })
