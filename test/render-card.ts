@@ -14,7 +14,7 @@ const history: FormulaHistory = {
 
 const service = new PlayerCardService({
   getHistory: async () => ({ history, qq: '526482608' }),
-  getPlayerRecords: async () => ({ records: [{ id: '1', recordId: '1', mahjongId: 'm1', mahjongName: '最新雀庄', name1: '邀月', point1: 400, name2: 'Bob', point2: 300, name3: 'Chen', point3: 200, name4: 'Dana', point4: 100, logtime: '2026-08-18 22:18:31' }] }),
+  getPlayerRecords: async () => ({ records: [] }),
 } as never)
 const svg = await service.render('邀月', 'svg')
 const png = await service.render('邀月', 'png')

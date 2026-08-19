@@ -35,18 +35,72 @@ export function renderRank(model: PlayerCardModel): string {
   return `<g text-anchor="middle"><text x="1040" y="113" class="rank">${rank}</text><text x="1040" y="154" class="rate">RATE #${model.history.rate}</text></g>`
 }
 
+const fastestColor = '#16a34a'
+const loosestColor = '#dc2626'
+
+type PromotionPath = {
+  games: number
+  requiredSum: number
+  averagePlacement: number
+}
+
+function getPromotionPaths(model: PlayerCardModel): { fastest: PromotionPath; loosest: PromotionPath } | undefined {
+  const grade = getGrade(model.history.grade)
+  if (!grade || grade.promotionGameTarget === 0) return undefined
+  const history = model.recentPlacements.slice(-grade.promotionGameTarget)
+  if (history.length < grade.promotionGameTarget) return undefined
+  const candidates = Array.from({ length: grade.promotionGameTarget }, (_, games) => games + 1)
+    .map((games) => {
+      const retainedSum = history.slice(games).reduce((total, value) => total + value, 0)
+      const requiredSum = grade.promotionSumMax - retainedSum
+      return { games, requiredSum, averagePlacement: requiredSum / games }
+    })
+    .filter((candidate) => candidate.requiredSum >= candidate.games && candidate.requiredSum <= candidate.games * 4)
+  if (candidates.length === 0) return undefined
+  return {
+    fastest: candidates[0],
+    loosest: candidates.reduce((best, candidate) => candidate.averagePlacement > best.averagePlacement ? candidate : best),
+  }
+}
+
 export async function renderTrendChart(model: PlayerCardModel): Promise<string> {
-  const placements = model.recentPlacements.slice(-10)
+  const placements = model.recentPlacements.slice(-50)
+  const paths = getPromotionPaths(model)
+  const latest = placements.at(-1)
+  const projectionLength = Math.max(paths?.fastest.games ?? 0, paths?.loosest.games ?? 0)
+  const categories = Array.from({ length: placements.length + projectionLength }, (_, index) => `${index + 1}`)
+  const fastestProjection = paths && latest !== undefined
+    ? [...Array(placements.length - 1).fill(null), latest, ...Array(paths.fastest.games).fill(paths.fastest.averagePlacement)]
+    : []
+  const loosestProjection = paths && latest !== undefined
+    ? [...Array(placements.length - 1).fill(null), latest, ...Array(paths.loosest.games).fill(paths.loosest.averagePlacement)]
+    : []
   return ApexCharts.renderToString({
     chart: { type: 'line', height: 150, toolbar: { show: false }, animations: { enabled: false }, parentHeightOffset: 0 },
-    series: [{ name: '最近顺位', data: placements }],
-    stroke: { width: 3, curve: 'straight' },
-    markers: { size: 5, strokeWidth: 2, strokeColors: '#ffffff', hover: { size: 5 } },
-    colors: [navy],
-    xaxis: { categories: placements.map((_, index) => `${index + 1}`), labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
+    series: [
+      { name: '最近 50 局', data: placements },
+      { name: '最快升段预测', data: fastestProjection },
+      { name: '最宽松升段预测', data: loosestProjection },
+    ],
+    stroke: { width: [3, 2, 2], curve: 'straight', dashArray: [0, 7, 7] },
+    markers: { size: [3, 0, 0], strokeWidth: 2, strokeColors: '#ffffff', hover: { size: 4 } },
+    colors: [navy, fastestColor, loosestColor],
+    xaxis: { categories, labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
     yaxis: { min: 1, max: 4, reversed: true, tickAmount: 3, labels: { show: false } },
-    grid: { borderColor: '#dbe4f3', padding: { left: 12, right: 12, top: 6, bottom: 0 } },
-    dataLabels: { enabled: false },
+    grid: { borderColor: '#dbe4f3', padding: { left: 12, right: 54, top: 6, bottom: 0 } },
+    dataLabels: {
+      enabled: true,
+      enabledOnSeries: [1, 2],
+      formatter: (_value, options) => {
+        const projection = options?.seriesIndex === 1 ? fastestProjection : loosestProjection
+        if (!options || options.seriesIndex < 1 || options.dataPointIndex !== projection.length - 1) return ''
+        return options.seriesIndex === 1 ? '快速' : '宽松'
+      },
+      offsetX: 7,
+      style: { fontSize: '13px', fontWeight: 600, colors: [navy, fastestColor, loosestColor] },
+      background: { enabled: false },
+    },
+    legend: { show: false },
   }, { width: 930, height: 150 })
 }
 
@@ -94,24 +148,7 @@ export function renderPlacementLegend(model: PlayerCardModel): string {
 export function renderPromotion(model: PlayerCardModel): string {
   const grade = getGrade(model.history.grade)
   if (!grade || grade.promotionGameTarget === 0) return '<text x="640" y="513" class="promotion" text-anchor="middle" style="fill:#ffffff">已达到最高段位</text>'
-
-  const target = grade.promotionGameTarget
-  const history = model.recentPlacements.slice(-target)
-  if (history.length < target) {
-    return `<g class="promotion"><text x="640" y="513" text-anchor="middle" style="fill:#ffffff">最近 ${history.length}/${target} 局：数据不足，无法计算升段条件</text></g>`
-  }
-
-  const candidates = Array.from({ length: target }, (_, games) => games + 1)
-    .map((games) => {
-      const retainedSum = history.slice(games).reduce((total, value) => total + value, 0)
-      return { games, requiredSum: grade.promotionSumMax - retainedSum }
-    })
-    .filter((candidate) => candidate.requiredSum >= candidate.games && candidate.requiredSum <= candidate.games * 4)
-  if (candidates.length === 0) {
-    return '<text x="640" y="513" class="promotion" text-anchor="middle" style="fill:#ffffff">最近 50 局无法推导可行的升段条件</text>'
-  }
-
-  const fastest = candidates[0]
-  const loosest = candidates.reduce((best, candidate) => candidate.requiredSum / candidate.games > best.requiredSum / best.games ? candidate : best)
-  return `<g class="promotion"><text x="640" y="507" text-anchor="middle" style="fill:#ffffff">当前最快的升段条件是：${fastest.games} 半庄顺位之和 ≤ ${fastest.requiredSum}</text><text x="640" y="538" text-anchor="middle" style="fill:#ffffff">当前最宽松升段条件是：${loosest.games} 半庄顺位之和 ≤ ${loosest.requiredSum}</text></g>`
+  const paths = getPromotionPaths(model)
+  if (!paths) return `<text x="640" y="513" class="promotion" text-anchor="middle" style="fill:#ffffff">最近 ${model.recentPlacements.slice(-grade.promotionGameTarget).length}/${grade.promotionGameTarget} 局：无法推导升段条件</text>`
+  return `<g class="promotion"><text x="640" y="507" text-anchor="middle" style="fill:#ffffff">当前最快的升段条件是：${paths.fastest.games} 半庄顺位之和 ≤ ${paths.fastest.requiredSum}</text><text x="640" y="538" text-anchor="middle" style="fill:#ffffff">当前最宽松升段条件是：${paths.loosest.games} 半庄顺位之和 ≤ ${paths.loosest.requiredSum}</text></g>`
 }
