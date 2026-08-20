@@ -3,12 +3,15 @@ import Fastify from 'fastify'
 import { FormulaClient } from './formula-client.js'
 import { PlayerCardService } from './player-card-service.js'
 
+const disableSvg = ['1', 'true', 'yes'].includes((process.env.DISABLE_SVG ?? '').trim().toLowerCase())
+
 const app = Fastify({ logger: true })
 const cardService = new PlayerCardService(new FormulaClient())
 
 app.get<{ Params: { name: string; format: 'png' | 'svg' } }>('/api/player-cards/:name.:format', async (request, reply) => {
   const { name, format } = request.params
   if (format !== 'png' && format !== 'svg') return reply.code(404).send({ error: 'Supported formats are png and svg' })
+  if (format === 'svg' && disableSvg) return reply.code(404).send({ error: 'SVG output is disabled' })
 
   try {
     const image = await cardService.render(name, format)

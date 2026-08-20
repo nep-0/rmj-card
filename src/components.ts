@@ -104,6 +104,24 @@ export async function renderTrendChart(model: PlayerCardModel): Promise<string> 
   }, { width: 930, height: 150 })
 }
 
+
+export function renderRecentMatches(model: PlayerCardModel): string {
+  const grade = getGrade(model.history.grade)
+  const promotionGames = model.history.upAvgPosition > 0
+    ? Math.round(model.history.sumPosition / model.history.upAvgPosition)
+    : 0
+  const matches = model.recentPlacements.slice(-Math.min(promotionGames, 50))
+  const groups = Array.from({ length: Math.ceil(matches.length / 5) }, (_, index) => matches.slice(index * 5, index * 5 + 5))
+  if (groups.length === 0) return '<text x="640" y="545" class="recent-empty" text-anchor="middle">暂无最近对局数据</text>'
+  const groupWidth = 104
+  const startX = 640 - groups.length * groupWidth / 2
+  const cells = groups.map((group, index) => {
+    const start = index * 5 + 1
+    const x = startX + index * groupWidth + groupWidth / 2
+    return `<text x="${x}" y="535" class="recent-range" text-anchor="middle">${start}-${start + group.length - 1}</text><text x="${x}" y="562" class="recent-values" text-anchor="middle">${group.join('')}</text>`
+  }).join('')
+  return `<g><text x="${startX - 42}" y="535" class="recent-header">场次</text><text x="${startX - 42}" y="562" class="recent-header">顺位</text>${cells}</g>`
+}
 export async function renderRadarChart(model: PlayerCardModel): Promise<string> {
   const { history } = model
   const svg = await ApexCharts.renderToString({
@@ -139,7 +157,7 @@ export function renderPlacementLegend(model: PlayerCardModel): string {
   const colors = [navy, lime, amber, red]
   return counts.map((count, index) => {
     const percentage = total === 0 ? '0.00' : ((count / total) * 100).toFixed(2)
-    const y = 724 + index * 48
+    const y = 824 + index * 48
     return `<circle cx="1120" cy="${y - 6}" r="10" fill="${colors[index]}"/><text x="1140" y="${y}" class="ring-legend">${labels[index]} · ${percentage}%</text>`
   }).join('')
 }
@@ -147,8 +165,8 @@ export function renderPlacementLegend(model: PlayerCardModel): string {
 
 export function renderPromotion(model: PlayerCardModel): string {
   const grade = getGrade(model.history.grade)
-  if (!grade || grade.promotionGameTarget === 0) return '<text x="640" y="513" class="promotion" text-anchor="middle" style="fill:#ffffff">已达到最高段位</text>'
+  if (!grade || grade.promotionGameTarget === 0) return '<text x="640" y="632" class="promotion" text-anchor="middle" style="fill:#ffffff">已达到最高段位</text>'
   const paths = getPromotionPaths(model)
-  if (!paths) return `<text x="640" y="513" class="promotion" text-anchor="middle" style="fill:#ffffff">最近 ${model.recentPlacements.slice(-grade.promotionGameTarget).length}/${grade.promotionGameTarget} 局：无法推导升段条件</text>`
-  return `<g class="promotion"><text x="640" y="507" text-anchor="middle" style="fill:#ffffff">当前最快的升段条件是：${paths.fastest.games} 半庄顺位之和 ≤ ${paths.fastest.requiredSum}</text><text x="640" y="538" text-anchor="middle" style="fill:#ffffff">当前最宽松升段条件是：${paths.loosest.games} 半庄顺位之和 ≤ ${paths.loosest.requiredSum}</text></g>`
+  if (!paths) return `<text x="640" y="632" class="promotion" text-anchor="middle" style="fill:#ffffff">最近 ${model.recentPlacements.slice(-grade.promotionGameTarget).length}/${grade.promotionGameTarget} 局：无法推导升段条件</text>`
+  return `<g class="promotion"><text x="640" y="622" text-anchor="middle" style="fill:#ffffff">当前最快的升段条件是：${paths.fastest.games} 半庄顺位之和 ≤ ${paths.fastest.requiredSum}</text><text x="640" y="650" text-anchor="middle" style="fill:#ffffff">当前最宽松升段条件是：${paths.loosest.games} 半庄顺位之和 ≤ ${paths.loosest.requiredSum}</text></g>`
 }
