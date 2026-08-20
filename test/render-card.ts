@@ -18,6 +18,25 @@ const service = new PlayerCardService({
 } as never)
 const svg = await service.render('邀月', 'svg')
 const png = await service.render('邀月', 'png')
+const qhHistory = { ...history, recentlyPosition: '3,3,1,2,4,3,3,4,3,1', recentlyPoint: '162,106,383,216,7,192,218,8,236,443' }
+const qhSvg = await new PlayerCardService({
+  getHistory: async () => ({ history: qhHistory }),
+  getPlayerRecords: async () => ({ records: [] }),
+} as never).render('邀月', 'svg', 'QH')
+if (!qhSvg.includes('最近顺位数据') || !qhSvg.includes('>443</text>') || !qhSvg.includes('>1</text>')) {
+  throw new Error('Expected reversed QH history-only position and point tiles')
+}
+const qhFiftySvg = await new PlayerCardService({
+  getHistory: async () => ({ history, qq: '526482608' }),
+  getPlayerRecords: async () => ({ records: [] }),
+} as never).render('邀月', 'svg', 'QH')
+if (!qhFiftySvg.includes('1-5') || !qhFiftySvg.includes('46-50')) {
+  throw new Error('Expected QH fifty-match grouped history')
+}
+await writeFile('/tmp/rmj-card-qh-tiles.png', await new PlayerCardService({
+  getHistory: async () => ({ history: qhHistory }),
+  getPlayerRecords: async () => ({ records: [] }),
+} as never).render('邀月', 'png', 'QH'))
 if (!svg.subarray(0, 4).equals(Buffer.from('<svg'))) throw new Error('Expected SVG output')
 if (!png.subarray(1, 4).equals(Buffer.from('PNG'))) throw new Error('Expected PNG output')
 if (!svg.includes('1-5') || !svg.includes('46-50')) throw new Error('Expected grouped recent match history')

@@ -110,12 +110,12 @@ export async function renderTrendChart(model: PlayerCardModel): Promise<string> 
 }
 
 
-export function renderRecentMatches(model: PlayerCardModel): string {
-  const grade = getGrade(model.history.grade)
+export function renderRecentMatches(model: PlayerCardModel, count?: number): string {
   const promotionGames = model.history.upAvgPosition > 0
     ? Math.round(model.history.sumPosition / model.history.upAvgPosition)
     : 0
-  const matches = model.recentPlacements.slice(-Math.min(promotionGames, 50))
+  const requestedCount = count ?? promotionGames
+  const matches = model.recentPlacements.slice(-Math.min(requestedCount, 50))
   const groups = Array.from({ length: Math.ceil(matches.length / 5) }, (_, index) => matches.slice(index * 5, index * 5 + 5))
   if (groups.length === 0) return '<text x="640" y="545" class="recent-empty" text-anchor="middle">暂无最近对局数据</text>'
   const groupWidth = 104
@@ -126,6 +126,30 @@ export function renderRecentMatches(model: PlayerCardModel): string {
     return `<text x="${x}" y="535" class="recent-range" text-anchor="middle">${start}-${start + group.length - 1}</text><text x="${x}" y="562" class="recent-values" text-anchor="middle">${group.join('')}</text>`
   }).join('')
   return `<g><text x="${startX - 42}" y="535" class="recent-header">场次</text><text x="${startX - 42}" y="562" class="recent-header">顺位</text>${cells}</g>`
+}
+
+export function renderQhRecentTiles(model: PlayerCardModel): string {
+  const placements = model.history.recentlyPosition.split(',').map(Number).filter((value) => value >= 1 && value <= 4).reverse()
+  const points = model.history.recentlyPoint.split(',').map(Number).filter(Number.isFinite).reverse()
+  const count = Math.min(10, placements.length, points.length)
+  if (count === 0) return '<text x="640" y="455" class="qh-empty" text-anchor="middle">暂无最近对局数据</text>'
+  const recentPlacements = placements.slice(-count)
+  const recentPoints = points.slice(-count)
+  const tileWidth = 94
+  const gap = 18
+  const totalWidth = count * tileWidth + (count - 1) * gap
+  const startX = (1280 - totalWidth) / 2
+  const colors = [
+    { fill: '#e5e9f5', stroke: '#c7d1ea', text: '#315aa4' },
+    { fill: '#eaf5e4', stroke: '#d1e7c4', text: '#67ad56' },
+    { fill: '#fff6dd', stroke: '#f5eac8', text: '#e9ae2f' },
+    { fill: '#fbe8e8', stroke: '#f3cccc', text: '#e36363' },
+  ]
+  return recentPlacements.map((placement, index) => {
+    const x = startX + index * (tileWidth + gap)
+    const color = colors[placement - 1]
+    return `<rect x="${x}" y="330" width="${tileWidth}" height="58" rx="10" fill="${color.fill}" stroke="${color.stroke}" stroke-width="2"/><text x="${x + tileWidth / 2}" y="370" class="qh-placement" text-anchor="middle" style="fill:${color.text}">${placement}</text><rect x="${x}" y="417" width="${tileWidth}" height="58" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="2"/><text x="${x + tileWidth / 2}" y="457" class="qh-point" text-anchor="middle">${recentPoints[index]}</text>`
+  }).join('')
 }
 export async function renderRadarChart(model: PlayerCardModel): Promise<string> {
   const { history } = model
