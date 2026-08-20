@@ -46,12 +46,17 @@ type PromotionPath = {
 
 function getPromotionPaths(model: PlayerCardModel): { fastest: PromotionPath; loosest: PromotionPath } | undefined {
   const grade = getGrade(model.history.grade)
-  if (!grade || grade.promotionGameTarget === 0) return undefined
-  const history = model.recentPlacements.slice(-grade.promotionGameTarget)
-  if (history.length < grade.promotionGameTarget) return undefined
-  const candidates = Array.from({ length: grade.promotionGameTarget }, (_, games) => games + 1)
+  if (!grade || grade.promotionGameTarget === 0 || model.history.upAvgPosition <= 0) return undefined
+  const promotionGames = Math.round(model.history.sumPosition / model.history.upAvgPosition)
+  const history = model.recentPlacements.slice(-Math.min(promotionGames, grade.promotionGameTarget))
+  const minimumFutureGames = Math.max(1, grade.promotionGameTarget - history.length)
+  const candidates = Array.from(
+    { length: grade.promotionGameTarget - minimumFutureGames + 1 },
+    (_, index) => minimumFutureGames + index,
+  )
     .map((games) => {
-      const retainedSum = history.slice(games).reduce((total, value) => total + value, 0)
+      const retainedGames = Math.max(0, grade.promotionGameTarget - games)
+      const retainedSum = retainedGames === 0 ? 0 : history.slice(-retainedGames).reduce((total, value) => total + value, 0)
       const requiredSum = grade.promotionSumMax - retainedSum
       return { games, requiredSum, averagePlacement: requiredSum / games }
     })

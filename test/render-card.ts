@@ -41,6 +41,9 @@ const nepSvg = await new PlayerCardService({
 if (!nepSvg.includes('1-5') || !nepSvg.includes('6-6') || nepSvg.includes('16-20')) {
   throw new Error('Expected NeP six-match history groups')
 }
+if (!nepSvg.includes('快速') || !nepSvg.includes('宽松') || !nepSvg.includes('14 半庄顺位之和 ≤ 31')) {
+  throw new Error('Expected NeP promotion paths to include remaining required matches')
+}
 await writeFile('/tmp/rmj-card-nep-fixture.png', await new PlayerCardService({
   getHistory: async () => ({ history: nepHistory }),
   getPlayerRecords: async () => ({ records: [] }),
