@@ -11,6 +11,8 @@ RUN npm ci && npm cache clean --force
 
 COPY src ./src
 COPY NotoSansSC-Regular.otf ./NotoSansSC-Regular.otf
+RUN install -D -m 0644 NotoSansSC-Regular.otf /usr/local/share/fonts/NotoSansSC-Regular.otf \
+  && fc-cache --force
 
 ENV NODE_ENV=production
 ENV PORT=3000
