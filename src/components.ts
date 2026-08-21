@@ -155,7 +155,14 @@ export async function renderRadarChart(model: PlayerCardModel): Promise<string> 
   const { history } = model
   const svg = await ApexCharts.renderToString({
     chart: { type: 'radar', height: 315, toolbar: { show: false }, animations: { enabled: false }, parentHeightOffset: 0 },
-    series: [{ name: '能力', data: [history.fire, history.attack / 1000, history.technique, history.luck * 4, history.stability * 2, history.defense * 2] }],
+    series: [{ name: '能力', data: [
+      -1.6203334116 * history.fire + 4.84080770134,
+      0.0000311516555745 * history.attack + 0.69084097064,
+      0.0288242957891 * history.technique + 0.647027247402,
+      1.12302348023 * history.luck + 0.257821259244,
+      1.54789147231 * history.stability + 0.0637075002691,
+      1.05404227975 * history.defense - 0.00136779054899,
+    ] }],
     labels: ['火力', '进攻', '技术', '运势', '稳定', '防守'],
     colors: [navy],
     fill: { opacity: 0.25 },
