@@ -7,6 +7,9 @@ Node.js service that fetches RMJ Formula statistics and returns downloadable pla
 - `GET /health` — returns `{"status":"ok"}`.
 - `GET /api/player-cards/:name.png` — returns a PNG player card. `style` defaults to `modern`; pass `?style=QH` for the QH style.
 - `GET /api/player-cards/:name.svg` — returns the rendered SVG player card when `DISABLE_SVG` is not enabled. It accepts the same `style` parameter.
+- `GET /api/player-stats/:name.txt` — returns aggregate player statistics as UTF-8 plain text.
+- `GET /api/player-opponents/good/:name.txt` — returns the first 10 opponents as `好人榜`.
+- `GET /api/player-opponents/bad/:name.txt` — returns the last 10 opponents as `仇人榜`; the service fetches the final two upstream pages when available.
 
 Supported styles are `modern` and `QH`. `QH` is presently a separate copy of the modern composition, ready for independent styling; it does not change the default card.
 The Formula crypto session is maintained in memory by one `FormulaClient` instance and reused across requests. It is recreated when it expires. The session is process-local; running multiple replicas creates one upstream session per replica.

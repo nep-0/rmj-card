@@ -17,6 +17,7 @@ import {
 } from './components.js'
 import { FormulaClient } from './formula-client.js'
 import type { PlayerCardModel } from './types.js'
+import { renderOpponentRanking, renderPlayerStats } from './text-renderer.js'
 
 const fontDataUri = readFile(resolve('NotoSansSC-Regular.otf')).then((font) => `data:font/otf;base64,${font.toString('base64')}`)
 
@@ -64,6 +65,35 @@ export class PlayerCardService {
     }
     const svg = await this.renderStyleSvg(model, style)
     return format === 'svg' ? Buffer.from(svg) : sharp(Buffer.from(svg)).png().toBuffer()
+  }
+
+  async renderStatsText(name: string): Promise<string> {
+    const history = await this.requireHistory(name)
+    return renderPlayerStats(history)
+  }
+
+  async renderGoodOpponentText(name: string): Promise<string> {
+    const history = await this.requireHistory(name)
+    const page = await this.formula.getOpponentStats(history.customerId, 1, 10)
+    return renderOpponentRanking(history.name, (page.records ?? []).slice(0, 10), '好人榜')
+  }
+
+  async renderBadOpponentText(name: string): Promise<string> {
+    const history = await this.requireHistory(name)
+    const firstPage = await this.formula.getOpponentStats(history.customerId, 1, 10)
+    const total = firstPage.total ?? firstPage.records?.length ?? 0
+    const lastPageNumber = firstPage.pages ?? Math.ceil(total / 10)
+    const pageNumbers = [Math.max(1, lastPageNumber - 1), lastPageNumber].filter((pageNo, index, values) => values.indexOf(pageNo) === index)
+    const pages = await Promise.all(pageNumbers.map((pageNo) => this.formula.getOpponentStats(history.customerId, pageNo, 10)))
+    const records = pages.flatMap((page) => page.records ?? [])
+    return renderOpponentRanking(history.name, records.slice(-10), '仇人榜')
+  }
+
+  private async requireHistory(name: string) {
+    if (name.trim().length === 0) throw new Error('Player name must not be empty')
+    const result = await this.formula.getHistory(name)
+    if (!result.history) throw new Error(`No Formula statistics found for ${name}`)
+    return result.history
   }
 
   private async fetchAvatar(qq: string): Promise<string | undefined> {

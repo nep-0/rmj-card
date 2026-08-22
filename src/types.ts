@@ -52,6 +52,31 @@ export interface PlayerRecordsResult {
   records?: PlayerRecord[]
 }
 
+export interface OpponentStat {
+  opponentName: string
+  hateValue: number
+  meetCount: number
+  myWinRate: number
+  opponentPosition1: number
+  opponentPosition2: number
+  opponentPosition3: number
+  opponentPosition4: number
+  opponentAvgPosition: number
+  myPosition1: number
+  myPosition2: number
+  myPosition3: number
+  myPosition4: number
+  myAvgPosition: number
+}
+
+export interface OpponentStatsResult {
+  total?: number
+  size?: number
+  current?: number
+  pages?: number
+  records?: OpponentStat[]
+}
+
 export interface PlayerHistoryResult {
   history?: FormulaHistory | null
   qq?: string

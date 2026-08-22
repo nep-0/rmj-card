@@ -29,6 +29,36 @@ app.get<{ Params: { name: string; format: 'png' | 'svg' }; Querystring: { style?
   }
 })
 
+app.get<{ Params: { name: string } }>('/api/player-stats/:name.txt', async (request, reply) => {
+  try {
+    const text = await cardService.renderStatsText(request.params.name)
+    return reply.type('text/plain; charset=utf-8').header('Cache-Control', 'private, max-age=300').send(text)
+  } catch (error) {
+    request.log.error(error)
+    return reply.code(502).send({ error: error instanceof Error ? error.message : 'Player stats rendering failed' })
+  }
+})
+
+app.get<{ Params: { name: string } }>('/api/player-opponents/good/:name.txt', async (request, reply) => {
+  try {
+    const text = await cardService.renderGoodOpponentText(request.params.name)
+    return reply.type('text/plain; charset=utf-8').header('Cache-Control', 'private, max-age=300').send(text)
+  } catch (error) {
+    request.log.error(error)
+    return reply.code(502).send({ error: error instanceof Error ? error.message : 'Good opponent stats rendering failed' })
+  }
+})
+
+app.get<{ Params: { name: string } }>('/api/player-opponents/bad/:name.txt', async (request, reply) => {
+  try {
+    const text = await cardService.renderBadOpponentText(request.params.name)
+    return reply.type('text/plain; charset=utf-8').header('Cache-Control', 'private, max-age=300').send(text)
+  } catch (error) {
+    request.log.error(error)
+    return reply.code(502).send({ error: error instanceof Error ? error.message : 'Bad opponent stats rendering failed' })
+  }
+})
+
 app.get('/health', async () => ({ status: 'ok' }))
 
 await app.listen({ port: Number(process.env.PORT ?? 3000), host: '0.0.0.0' })

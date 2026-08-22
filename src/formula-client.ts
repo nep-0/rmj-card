@@ -7,7 +7,7 @@ import {
   createPublicKey,
 } from 'node:crypto'
 
-import type { FormulaHistory, PlayerHistoryResult, PlayerRecord, PlayerRecordsResult } from './types.js'
+import type { FormulaHistory, OpponentStatsResult, PlayerHistoryResult, PlayerRecord, PlayerRecordsResult } from './types.js'
 
 const BASE_URL = 'https://rmj.club/formula/'
 const SESSION_REFRESH_MARGIN_MS = 60_000
@@ -59,6 +59,16 @@ export class FormulaClient {
   async getPlayerRecords(customerId: string, pageNo: number, pageSize: number): Promise<PlayerRecordsResult> {
     return this.get<PlayerRecordsResult>(
       'index/formula/customer/records',
+      { customerId, pageNo: String(pageNo), pageSize: String(pageSize) },
+    )
+  }
+
+  async getOpponentStats(customerId: string, pageNo: number, pageSize: number): Promise<OpponentStatsResult> {
+    if (customerId.trim().length === 0) throw new Error('Customer ID must not be empty')
+    if (!Number.isInteger(pageNo) || pageNo <= 0) throw new Error('Page number must be positive')
+    if (!Number.isInteger(pageSize) || pageSize <= 0) throw new Error('Page size must be positive')
+    return this.get<OpponentStatsResult>(
+      'index/formula/customer/partner-stats',
       { customerId, pageNo: String(pageNo), pageSize: String(pageSize) },
     )
   }
