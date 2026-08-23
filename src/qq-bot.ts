@@ -1,8 +1,13 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { Bot, ReceiverMode, segment, type GroupMessageEvent } from 'qq-official-bot'
 
 import { config } from './config.js'
 import { PlayerCardService } from './player-card-service.js'
 import { QqNameCache } from './qq-name-cache.js'
+
 
 const commandNames: readonly string[] = Object.values(config.qqBot.commands)
 type CommandResult = { command: string; name?: string }
@@ -62,7 +67,14 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
     switch (parsed.command) {
       case config.qqBot.commands.card: {
         const png = await cardService.render(name, 'png')
-        await event.reply(segment.image(`data:image/png;base64,${png.toString('base64')}`))
+        const directory = await mkdtemp(join(tmpdir(), 'rmj-card-'))
+        const file = join(directory, 'player-card.png')
+        try {
+          await writeFile(file, png)
+          await event.reply(segment.image(file))
+        } finally {
+          await rm(directory, { recursive: true, force: true })
+        }
         return
       }
       case config.qqBot.commands.stats: await event.reply(await cardService.renderStatsText(name)); return
