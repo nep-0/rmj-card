@@ -10,6 +10,7 @@ export const config = {
     qqNameCacheFile: resolve(process.env.QQ_NAME_CACHE_FILE ?? 'data/qq-name-cache.json'),
   },
   qqBot: {
+    publicBaseUrl: process.env.QQ_BOT_PUBLIC_BASE_URL ?? '',
     enabled: (process.env.QQ_BOT_ENABLED ?? 'false').toLowerCase() === 'true',
     appid: process.env.QQ_BOT_APPID ?? '',
     secret: process.env.QQ_BOT_SECRET ?? '',

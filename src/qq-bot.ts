@@ -62,8 +62,9 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
     }
     switch (parsed.command) {
       case config.qqBot.commands.card: {
-        const png = await cardService.render(name, 'png')
-        const upload = await event.bot.fileProcessor.uploadMedia(png, {
+        if (!config.qqBot.publicBaseUrl) throw new Error('QQ_BOT_PUBLIC_BASE_URL must be configured for card images')
+        const imageUrl = new URL(`/api/player-cards/${encodeURIComponent(name)}.png`, config.qqBot.publicBaseUrl).toString()
+        const upload = await event.bot.fileProcessor.uploadByUrl(imageUrl, {
           targetType: 'group',
           targetId: event.group_id,
           fileType: 1,
