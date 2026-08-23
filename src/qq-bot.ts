@@ -1,7 +1,5 @@
 import { Bot, ReceiverMode, segment, type GroupMessageEvent } from 'qq-official-bot'
 
-
-
 import { config } from './config.js'
 import { PlayerCardService } from './player-card-service.js'
 import { QqNameCache } from './qq-name-cache.js'
@@ -51,6 +49,7 @@ async function configureCommandPanel(bot: Bot<ReceiverMode>): Promise<void> {
     panel,
   })
 }
+
 async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache): Promise<void> {
   const parsed = parseGroupCommand(event.raw_message)
   if (!parsed) return
@@ -61,7 +60,7 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
       return
     }
     switch (parsed.command) {
-      case config.qqBot.commands.card: await event.reply(segment.image(await cardService.render(name, 'png'))); return
+      case config.qqBot.commands.card: await event.reply(segment.image(await cardService.render(name, 'png'), { name: 'player-card.png' })); return
       case config.qqBot.commands.stats: await event.reply(await cardService.renderStatsText(name)); return
       case config.qqBot.commands.goodOpponents: await event.reply(await cardService.renderGoodOpponentText(name)); return
       case config.qqBot.commands.badOpponents: await event.reply(await cardService.renderBadOpponentText(name)); return
