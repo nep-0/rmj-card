@@ -60,10 +60,13 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
       return
     }
     switch (parsed.command) {
-      case config.qqBot.commands.card: await event.reply(segment.image(await cardService.render(name, 'png'), { name: 'player-card.png' })); return
+      case config.qqBot.commands.card: {
+        const png = await cardService.render(name, 'png')
+        await event.reply(segment.image(`data:image/png;base64,${png.toString('base64')}`))
+        return
+      }
       case config.qqBot.commands.stats: await event.reply(await cardService.renderStatsText(name)); return
       case config.qqBot.commands.goodOpponents: await event.reply(await cardService.renderGoodOpponentText(name)); return
-      case config.qqBot.commands.badOpponents: await event.reply(await cardService.renderBadOpponentText(name)); return
     }
   } catch (error) {
     await event.reply(error instanceof Error ? error.message : '查询失败，请稍后重试。')
