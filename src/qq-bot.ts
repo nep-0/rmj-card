@@ -1,5 +1,7 @@
 import { Bot, ReceiverMode, segment, type GroupMessageEvent } from 'qq-official-bot'
 
+
+
 import { config } from './config.js'
 import { PlayerCardService } from './player-card-service.js'
 import { QqNameCache } from './qq-name-cache.js'
@@ -32,6 +34,23 @@ export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCac
   return bot
 }
 
+async function configureCommandPanel(bot: Bot<ReceiverMode>): Promise<void> {
+  if (!config.qqBot.panel.enabled) return
+  const panel = { items: [...config.qqBot.panel.items], remark: config.qqBot.panel.remark }
+  const existing = await bot.getCommandPanels({ scope: config.qqBot.panel.scope, limit: 100 })
+  const matching = existing.records.find((record) =>
+    record.target_type === config.qqBot.panel.targetType && record.panel.remark === config.qqBot.panel.remark,
+  )
+  if (matching) {
+    await bot.updateCommandPanel(matching.panel_id, panel)
+    return
+  }
+  await bot.createCommandPanel({
+    scope: config.qqBot.panel.scope,
+    target_type: config.qqBot.panel.targetType,
+    panel,
+  })
+}
 async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache): Promise<void> {
   const parsed = parseGroupCommand(event.raw_message)
   if (!parsed) return
@@ -53,5 +72,7 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
 }
 
 export async function startQqBot(bot: Bot<ReceiverMode> | undefined): Promise<void> {
-  if (bot) await bot.start()
+  if (!bot) return
+  await bot.start()
+  await configureCommandPanel(bot)
 }
