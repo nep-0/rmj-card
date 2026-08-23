@@ -7,7 +7,8 @@ import {
   createPublicKey,
 } from 'node:crypto'
 
-import type { FormulaHistory, OpponentStatsResult, PlayerHistoryResult, PlayerRecord, PlayerRecordsResult } from './types.js'
+import { QqNameCache } from './qq-name-cache.js'
+import type { OpponentStatsResult, PlayerHistoryResult, PlayerRecordsResult } from './types.js'
 
 const BASE_URL = 'https://rmj.club/formula/'
 const SESSION_REFRESH_MARGIN_MS = 60_000
@@ -49,12 +50,17 @@ export class FormulaClient {
   private session?: Session
   private sessionPromise?: Promise<Session>
 
+  constructor(private readonly qqNameCache?: QqNameCache) {}
+
   async getHistory(name: string): Promise<PlayerHistoryResult> {
-    return this.get<PlayerHistoryResult>(
+    const result = await this.get<PlayerHistoryResult>(
       'index/formula/customer/history',
       { name },
     )
+    if (result.history && result.qq) await this.qqNameCache?.remember(result.qq, result.history.name)
+    return result
   }
+
 
   async getPlayerRecords(customerId: string, pageNo: number, pageSize: number): Promise<PlayerRecordsResult> {
     return this.get<PlayerRecordsResult>(
