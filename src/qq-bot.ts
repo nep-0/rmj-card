@@ -1,6 +1,7 @@
 import { Bot, ReceiverMode, segment, type GroupMessageEvent } from 'qq-official-bot'
 
 import { config } from './config.js'
+import { PanelGroupRegistry } from './panel-group-registry.js'
 import { PlayerCardService } from './player-card-service.js'
 import { QqNameCache } from './qq-name-cache.js'
 
@@ -15,7 +16,7 @@ export function parseGroupCommand(rawMessage: string): CommandResult | undefined
   return { command, name: name?.trim() || undefined }
 }
 
-export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCache): Bot<ReceiverMode> | undefined {
+export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry): Bot<ReceiverMode> | undefined {
   if (!config.qqBot.enabled) return undefined
   if (!config.qqBot.appid || !config.qqBot.secret) throw new Error('QQ bot requires QQ_BOT_APPID and QQ_BOT_SECRET')
 
@@ -28,12 +29,14 @@ export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCac
     logLevel: config.qqBot.logLevel,
     maxRetry: config.qqBot.maxRetry,
   })
-  bot.on('message.group.at', async (event) => handleGroupCommand(event, cardService, nameCache))
+  bot.on('message.group.at', async (event) => handleGroupCommand(event, cardService, nameCache, panelGroups))
   return bot
 }
 
-async function configureCommandPanel(bot: Bot<ReceiverMode>): Promise<void> {
+async function configureCommandPanel(bot: Bot<ReceiverMode>, panelGroups: PanelGroupRegistry): Promise<void> {
   if (!config.qqBot.panel.enabled) return
+  const groupOpenids = await panelGroups.list()
+  if (groupOpenids.length === 0) return
   const panel = { items: [...config.qqBot.panel.items], remark: config.qqBot.panel.remark }
   const existing = await bot.getCommandPanels({ scope: config.qqBot.panel.scope, limit: 100 })
   const matching = existing.records.find((record) =>
@@ -41,19 +44,30 @@ async function configureCommandPanel(bot: Bot<ReceiverMode>): Promise<void> {
   )
   if (matching) {
     await bot.updateCommandPanel(matching.panel_id, panel)
+    await bot.updateCommandPanelTargets(matching.panel_id, { op: 'add', group_openids: groupOpenids })
     return
   }
   await bot.createCommandPanel({
     scope: config.qqBot.panel.scope,
     target_type: config.qqBot.panel.targetType,
+    group_openids: groupOpenids,
     panel,
   })
 }
 
-async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache): Promise<void> {
+async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry): Promise<void> {
   const parsed = parseGroupCommand(event.raw_message)
   if (!parsed) return
   try {
+    if (parsed.command === config.qqBot.commands.add) {
+      const added = await panelGroups.add(event.group_id)
+      if (added) {
+        await event.reply('当前群已加入指令面板配置，机器人重启后生效。')
+      } else {
+        await event.reply('当前群已经在指令面板配置中。')
+      }
+      return
+    }
     if (parsed.command === config.qqBot.commands.bind) {
       if (!parsed.name) {
         await event.reply(`用法：${config.qqBot.commandPrefix}${config.qqBot.commands.bind} 玩家名`)
@@ -86,8 +100,8 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
   }
 }
 
-export async function startQqBot(bot: Bot<ReceiverMode> | undefined): Promise<void> {
+export async function startQqBot(bot: Bot<ReceiverMode> | undefined, panelGroups: PanelGroupRegistry): Promise<void> {
   if (!bot) return
   await bot.start()
-  await configureCommandPanel(bot)
+  await configureCommandPanel(bot, panelGroups)
 }

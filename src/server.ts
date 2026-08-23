@@ -5,11 +5,13 @@ import { FormulaClient } from './formula-client.js'
 import { isCardStyle, PlayerCardService } from './player-card-service.js'
 import { createQqBot, startQqBot } from './qq-bot.js'
 import { QqNameCache } from './qq-name-cache.js'
+import { PanelGroupRegistry } from './panel-group-registry.js'
 
 const app = Fastify({ logger: true })
 const nameCache = new QqNameCache(config.formula.qqNameCacheFile)
+const panelGroups = new PanelGroupRegistry(config.qqBot.panelGroupsFile)
 const cardService = new PlayerCardService(new FormulaClient(nameCache))
-const qqBot = createQqBot(cardService, nameCache)
+const qqBot = createQqBot(cardService, nameCache, panelGroups)
 
 app.get<{ Params: { name: string; format: 'png' | 'svg' }; Querystring: { style?: string } }>('/api/player-cards/:name.:format', async (request, reply) => {
   const { name, format } = request.params
@@ -65,4 +67,4 @@ app.get<{ Params: { name: string } }>('/api/player-opponents/bad/:name.txt', asy
 app.get('/health', async () => ({ status: 'ok' }))
 
 await app.listen({ port: config.server.port, host: config.server.host })
-await startQqBot(qqBot)
+await startQqBot(qqBot, panelGroups)

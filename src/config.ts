@@ -10,6 +10,7 @@ export const config = {
     qqNameCacheFile: resolve(process.env.QQ_NAME_CACHE_FILE ?? 'data/qq-name-cache.json'),
   },
   qqBot: {
+    panelGroupsFile: resolve(process.env.QQ_BOT_PANEL_GROUPS_FILE ?? 'data/qq-panel-groups.json'),
     publicBaseUrl: process.env.QQ_BOT_PUBLIC_BASE_URL ?? '',
     enabled: (process.env.QQ_BOT_ENABLED ?? 'false').toLowerCase() === 'true',
     appid: process.env.QQ_BOT_APPID ?? '',
@@ -24,7 +25,7 @@ export const config = {
     panel: {
       enabled: (process.env.QQ_BOT_PANEL_ENABLED ?? 'true').toLowerCase() === 'true',
       scope: 'group' as const,
-      targetType: 'all' as const,
+      targetType: 'specific' as const,
       remark: 'RMJ Card 群指令',
       items: [
         { name: '/help', desc: '查看帮助', type: 'command' as const },
@@ -36,6 +37,7 @@ export const config = {
       ],
     },
     commands: {
+      add: 'add',
       bind: 'bind',
       card: 'card',
       stats: 'stats',
