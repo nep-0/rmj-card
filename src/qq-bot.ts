@@ -4,7 +4,6 @@ import { config } from './config.js'
 import { PlayerCardService } from './player-card-service.js'
 import { QqNameCache } from './qq-name-cache.js'
 
-
 const commandNames: readonly string[] = Object.values(config.qqBot.commands)
 type CommandResult = { command: string; name?: string }
 
@@ -55,6 +54,16 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
   const parsed = parseGroupCommand(event.raw_message)
   if (!parsed) return
   try {
+    if (parsed.command === config.qqBot.commands.bind) {
+      if (!parsed.name) {
+        await event.reply(`用法：${config.qqBot.commandPrefix}${config.qqBot.commands.bind} 玩家名`)
+        return
+      }
+      await nameCache.remember(event.user_id, parsed.name)
+      await event.reply(`已将 QQ ${event.user_id} 绑定到玩家「${parsed.name}」。`)
+      return
+    }
+
     const name = parsed.name ?? await nameCache.getName(event.user_id)
     if (!name) {
       await event.reply(`未找到你的玩家名称，请使用 ${config.qqBot.commandPrefix}${parsed.command} 玩家名 查询。`)
@@ -63,12 +72,14 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
     switch (parsed.command) {
       case config.qqBot.commands.card: {
         if (!config.qqBot.publicBaseUrl) throw new Error('QQ_BOT_PUBLIC_BASE_URL must be configured for card images')
-        const imageUrl = new URL(`/api/player-cards/${encodeURIComponent(name)}.png`, config.qqBot.publicBaseUrl).toString()
-        await event.reply(segment.image(imageUrl))
+        const imageUrl = new URL(`/api/player-cards/${encodeURIComponent(name)}.png`, config.qqBot.publicBaseUrl)
+        imageUrl.searchParams.set('style', config.qqBot.style)
+        await event.reply(segment.image(imageUrl.toString()))
         return
       }
       case config.qqBot.commands.stats: await event.reply(await cardService.renderStatsText(name)); return
       case config.qqBot.commands.goodOpponents: await event.reply(await cardService.renderGoodOpponentText(name)); return
+      case config.qqBot.commands.badOpponents: await event.reply(await cardService.renderBadOpponentText(name)); return
     }
   } catch (error) {
     await event.reply(error instanceof Error ? error.message : '查询失败，请稍后重试。')

@@ -20,6 +20,7 @@ export const config = {
     logLevel: 'info' as const,
     maxRetry: 10,
     commandPrefix: process.env.QQ_BOT_COMMAND_PREFIX ?? '/',
+    style: (process.env.QQ_BOT_STYLE ?? 'modern') as 'modern' | 'QH',
     panel: {
       enabled: (process.env.QQ_BOT_PANEL_ENABLED ?? 'true').toLowerCase() === 'true',
       scope: 'group' as const,
@@ -27,6 +28,7 @@ export const config = {
       remark: 'RMJ Card 群指令',
       items: [
         { name: '/help', desc: '查看帮助', type: 'command' as const },
+        { name: '/bind', desc: '绑定 QQ 号与玩家名', type: 'command' as const },
         { name: '/card', desc: '生成玩家卡片，可追加玩家名', type: 'command' as const },
         { name: '/stats', desc: '查询玩家数据，可追加玩家名', type: 'command' as const },
         { name: '/good', desc: '查询好人榜，可追加玩家名', type: 'command' as const },
@@ -34,6 +36,7 @@ export const config = {
       ],
     },
     commands: {
+      bind: 'bind',
       card: 'card',
       stats: 'stats',
       goodOpponents: 'good',
