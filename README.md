@@ -39,6 +39,12 @@ curl -f -o player-card-qh.png 'http://localhost:3000/api/player-cards/NeP.png?st
 
 There are currently no Formula API URL, credential, or crypto-session environment variables. Formula access uses the public upstream API and the client generates and refreshes its own in-memory cryptographic session.
 
+### QQ official bot
+
+Set `QQ_BOT_ENABLED=true`, `QQ_BOT_APPID`, and `QQ_BOT_SECRET` to start the bot. The command panel is enabled by default once a group OpenID has been registered: send `/add` in that group, then restart the service. The bot persists the OpenID in `QQ_BOT_PANEL_GROUPS_FILE` and synchronizes the panel through QQ's group-panel API at startup.
+
+`QQ_BOT_PUBLIC_BASE_URL` must be a publicly reachable HTTPS URL for `/card` image replies.
+
 ## OCI image
 
 The GitHub Actions workflow at `.github/workflows/container-image.yml` builds the image on pull requests and pushes it to GitHub Container Registry on `main` and version tags. Published images use:

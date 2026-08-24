@@ -4,6 +4,7 @@ import { config } from './config.js'
 import { PanelGroupRegistry } from './panel-group-registry.js'
 import { PlayerCardService } from './player-card-service.js'
 import { QqNameCache } from './qq-name-cache.js'
+import { QqOfficialPanelClient } from './qqofficial-panel.js'
 
 const commandNames: readonly string[] = Object.values(config.qqBot.commands)
 type CommandResult = { command: string; name?: string }
@@ -33,26 +34,11 @@ export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCac
   return bot
 }
 
-async function configureCommandPanel(bot: Bot<ReceiverMode>, panelGroups: PanelGroupRegistry): Promise<void> {
+async function configureCommandPanel(panelGroups: PanelGroupRegistry): Promise<void> {
   if (!config.qqBot.panel.enabled) return
   const groupOpenids = await panelGroups.list()
-  if (groupOpenids.length === 0) return
-  const panel = { items: [...config.qqBot.panel.items], remark: config.qqBot.panel.remark }
-  const existing = await bot.getCommandPanels({ scope: config.qqBot.panel.scope, limit: 100 })
-  const matching = existing.records.find((record) =>
-    record.target_type === config.qqBot.panel.targetType && record.panel.remark === config.qqBot.panel.remark,
-  )
-  if (matching) {
-    await bot.updateCommandPanel(matching.panel_id, panel)
-    await bot.updateCommandPanelTargets(matching.panel_id, { op: 'add', group_openids: groupOpenids })
-    return
-  }
-  await bot.createCommandPanel({
-    scope: config.qqBot.panel.scope,
-    target_type: config.qqBot.panel.targetType,
-    group_openids: groupOpenids,
-    panel,
-  })
+  const panel = { items: config.qqBot.panel.items, remark: config.qqBot.panel.remark }
+  await new QqOfficialPanelClient(config.qqBot.appid, config.qqBot.secret).synchronizeGroupPanel(panel, groupOpenids)
 }
 
 async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry): Promise<void> {
@@ -103,5 +89,5 @@ async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerC
 export async function startQqBot(bot: Bot<ReceiverMode> | undefined, panelGroups: PanelGroupRegistry): Promise<void> {
   if (!bot) return
   await bot.start()
-  await configureCommandPanel(bot, panelGroups)
+  await configureCommandPanel(panelGroups)
 }
