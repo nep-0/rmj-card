@@ -38,6 +38,7 @@ export const config = {
     },
     commands: {
       add: 'add',
+      help: 'help',
       bind: 'bind',
       card: 'card',
       stats: 'stats',

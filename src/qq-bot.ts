@@ -8,6 +8,15 @@ import { QqOfficialPanelClient } from './qqofficial-panel.js'
 
 const commandNames: readonly string[] = Object.values(config.qqBot.commands)
 type CommandResult = { command: string; name?: string }
+const helpText = [
+  '可用指令：',
+  '/bind 玩家名 - 绑定玩家名',
+  '/card [玩家名] - 生成玩家卡片',
+  '/stats [玩家名] - 查询玩家数据',
+  '/good [玩家名] - 查询好人榜',
+  '/bad [玩家名] - 查询仇人榜',
+].join('\n')
+
 
 export function parseGroupCommand(rawMessage: string): CommandResult | undefined {
   const text = rawMessage.trim()
@@ -41,10 +50,15 @@ async function configureCommandPanel(panelGroups: PanelGroupRegistry): Promise<v
   await new QqOfficialPanelClient(config.qqBot.appid, config.qqBot.secret).synchronizeGroupPanel(panel, groupOpenids)
 }
 
-async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry): Promise<void> {
+export async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry): Promise<void> {
   const parsed = parseGroupCommand(event.raw_message)
   if (!parsed) return
   try {
+    if (parsed.command === config.qqBot.commands.help) {
+      await event.reply(helpText)
+      return
+    }
+
     if (parsed.command === config.qqBot.commands.add) {
       const added = await panelGroups.add(event.group_id)
       if (added) {
