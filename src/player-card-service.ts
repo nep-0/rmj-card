@@ -74,19 +74,18 @@ export class PlayerCardService {
 
   async renderGoodOpponentText(name: string): Promise<string> {
     const history = await this.requireHistory(name)
-    const page = await this.formula.getOpponentStats(history.customerId, 1, 10)
-    return renderOpponentRanking(history.name, (page.records ?? []).slice(0, 10), '好人榜')
-  }
-
-  async renderBadOpponentText(name: string): Promise<string> {
-    const history = await this.requireHistory(name)
     const firstPage = await this.formula.getOpponentStats(history.customerId, 1, 10)
     const total = firstPage.total ?? firstPage.records?.length ?? 0
     const lastPageNumber = firstPage.pages ?? Math.ceil(total / 10)
     const pageNumbers = [Math.max(1, lastPageNumber - 1), lastPageNumber].filter((pageNo, index, values) => values.indexOf(pageNo) === index)
     const pages = await Promise.all(pageNumbers.map((pageNo) => this.formula.getOpponentStats(history.customerId, pageNo, 10)))
-    const records = pages.flatMap((page) => page.records ?? [])
-    return renderOpponentRanking(history.name, records.slice(-10), '仇人榜')
+    return renderOpponentRanking(history.name, pages.flatMap((page) => page.records ?? []).slice(-10), '好人榜')
+  }
+
+  async renderBadOpponentText(name: string): Promise<string> {
+    const history = await this.requireHistory(name)
+    const page = await this.formula.getOpponentStats(history.customerId, 1, 10)
+    return renderOpponentRanking(history.name, (page.records ?? []).slice(0, 10), '仇人榜')
   }
 
   private async requireHistory(name: string) {
