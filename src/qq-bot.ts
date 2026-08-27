@@ -19,11 +19,21 @@ const helpText = [
   '/bad [玩家名] - 查询仇人榜',
 ].join('\n')
 function commandButtons() {
+  const action = (data: string) => ({ type: 2, data, enter: true, reply: false, unsupport_tips: '请发送此指令' })
+  const button = (id: string, label: string, data: string, style: number) => ({
+    id,
+    render_data: { label, visited_label: label, style },
+    action: { ...action(data), permission: { type: 2 } },
+  })
   return segment.button({ buttons: [
-    { id: 'rmj-card', render_data: { label: '我的战绩', style: 1 }, action: { type: 2, data: '/card', enter: true, reply: false } },
-    { id: 'rmj-good', render_data: { label: '好人榜', style: 3 }, action: { type: 2, data: '/good', enter: true, reply: false } },
-    { id: 'rmj-bad', render_data: { label: '仇人榜', style: 2 }, action: { type: 2, data: '/bad', enter: true, reply: false } },
+    button('rmj-card', '我的战绩', '/card', 1),
+    button('rmj-good', '好人榜', '/good', 3),
+    button('rmj-bad', '仇人榜', '/bad', 2),
   ] })
+}
+
+function commandButtonMessage(content: string) {
+  return [segment.markdown(content), commandButtons()]
 }
 
 
@@ -116,12 +126,12 @@ export async function handleGroupCommand(event: GroupMessageEvent, cardService: 
         if (!config.qqBot.publicBaseUrl) throw new Error('QQ_BOT_PUBLIC_BASE_URL must be configured for card images')
         const imageUrl = new URL(`/api/player-cards/${encodeURIComponent(name)}.png`, config.qqBot.publicBaseUrl)
         imageUrl.searchParams.set('style', config.qqBot.style)
-        await event.reply([segment.image(imageUrl.toString()), commandButtons()])
+        await event.reply(commandButtonMessage(`![我的战绩](${imageUrl.toString()})`))
         return
       }
       case config.qqBot.commands.stats: await event.reply(await cardService.renderStatsText(name)); return
-      case config.qqBot.commands.goodOpponents: await event.reply([await cardService.renderGoodOpponentText(name), commandButtons()]); return
-      case config.qqBot.commands.badOpponents: await event.reply([await cardService.renderBadOpponentText(name), commandButtons()]); return
+      case config.qqBot.commands.goodOpponents: await event.reply(commandButtonMessage(await cardService.renderGoodOpponentText(name))); return
+      case config.qqBot.commands.badOpponents: await event.reply(commandButtonMessage(await cardService.renderBadOpponentText(name))); return
     }
   } catch (error) {
     await event.reply(error instanceof Error ? error.message : '查询失败，请稍后重试。')
