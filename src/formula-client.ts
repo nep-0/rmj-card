@@ -8,7 +8,7 @@ import {
 } from 'node:crypto'
 
 import { QqNameCache } from './qq-name-cache.js'
-import type { OpponentStatsResult, PlayerHistoryResult, PlayerRecordsResult } from './types.js'
+import type { ClubMatchRecordsResult, OpponentStatsResult, PlayerHistoryResult, PlayerRecordsResult } from './types.js'
 
 const BASE_URL = 'https://rmj.club/formula/'
 const SESSION_REFRESH_MARGIN_MS = 60_000
@@ -66,6 +66,14 @@ export class FormulaClient {
     return this.get<PlayerRecordsResult>(
       'index/formula/customer/records',
       { customerId, pageNo: String(pageNo), pageSize: String(pageSize) },
+    )
+  }
+
+  async getClubMatchRecords(mahjongId: string, pageSize = 12): Promise<ClubMatchRecordsResult> {
+    if (!mahjongId.trim()) throw new Error('Club ID must not be empty')
+    return this.get<ClubMatchRecordsResult>(
+      'index/formula/record/grid',
+      { mahjongId, cursor: '', pageSize: String(pageSize) },
     )
   }
 

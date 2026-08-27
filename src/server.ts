@@ -2,6 +2,8 @@ import Fastify from 'fastify'
 
 import { config } from './config.js'
 import { FormulaClient } from './formula-client.js'
+import { MatchReporter } from './match-reporter.js'
+import { MatchReportRegistry } from './match-report-registry.js'
 import { isCardStyle, PlayerCardService } from './player-card-service.js'
 import { createQqBot, startQqBot } from './qq-bot.js'
 import { QqNameCache } from './qq-name-cache.js'
@@ -10,8 +12,14 @@ import { PanelGroupRegistry } from './panel-group-registry.js'
 const app = Fastify({ logger: true })
 const nameCache = new QqNameCache(config.formula.qqNameCacheFile)
 const panelGroups = new PanelGroupRegistry(config.qqBot.panelGroupsFile)
-const cardService = new PlayerCardService(new FormulaClient(nameCache))
-const qqBot = createQqBot(cardService, nameCache, panelGroups)
+const matchReports = new MatchReportRegistry(config.qqBot.matchReportsFile)
+const formula = new FormulaClient(nameCache)
+const cardService = new PlayerCardService(formula)
+const matchReporter = new MatchReporter(formula, matchReports, async (groupId, message) => {
+  if (!qqBot) return
+  await qqBot.group(groupId).send(message)
+}, config.qqBot.matchReportIntervalMs)
+const qqBot = createQqBot(cardService, nameCache, panelGroups, matchReports, matchReporter)
 
 app.get<{ Params: { name: string; format: 'png' | 'svg' }; Querystring: { style?: string } }>('/api/player-cards/:name.:format', async (request, reply) => {
   const { name, format } = request.params
@@ -68,3 +76,5 @@ app.get('/health', async () => ({ status: 'ok' }))
 
 await app.listen({ port: config.server.port, host: config.server.host })
 await startQqBot(qqBot, panelGroups)
+matchReporter.start()
+app.addHook('onClose', async () => { matchReporter.stop() })

@@ -52,6 +52,28 @@ export interface PlayerRecordsResult {
   records?: PlayerRecord[]
 }
 
+export interface ClubMatchRecord {
+  id?: string
+  recordId?: string
+  mahjongId?: string
+  mahjongName?: string
+  name1: string
+  point1: number
+  name2: string
+  point2: number
+  name3: string
+  point3: number
+  name4: string
+  point4: number
+  logtime: string
+}
+
+export interface ClubMatchRecordsResult {
+  records?: ClubMatchRecord[]
+  nextCursor?: string
+  hasMore?: boolean
+}
+
 export interface OpponentStat {
   opponentName: string
   hateValue: number

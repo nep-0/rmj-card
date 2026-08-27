@@ -1,6 +1,8 @@
 import { Bot, ReceiverMode, segment, type GroupMessageEvent } from 'qq-official-bot'
 
 import { config } from './config.js'
+import { MatchReporter } from './match-reporter.js'
+import { MatchReportRegistry } from './match-report-registry.js'
 import { PanelGroupRegistry } from './panel-group-registry.js'
 import { PlayerCardService } from './player-card-service.js'
 import { QqNameCache } from './qq-name-cache.js'
@@ -26,7 +28,7 @@ export function parseGroupCommand(rawMessage: string): CommandResult | undefined
   return { command, name: name?.trim() || undefined }
 }
 
-export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry): Bot<ReceiverMode> | undefined {
+export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry, matchReports: MatchReportRegistry, reporter: MatchReporter): Bot<ReceiverMode> | undefined {
   if (!config.qqBot.enabled) return undefined
   if (!config.qqBot.appid || !config.qqBot.secret) throw new Error('QQ bot requires QQ_BOT_APPID and QQ_BOT_SECRET')
 
@@ -39,7 +41,7 @@ export function createQqBot(cardService: PlayerCardService, nameCache: QqNameCac
     logLevel: config.qqBot.logLevel,
     maxRetry: config.qqBot.maxRetry,
   })
-  bot.on('message.group.at', async (event) => handleGroupCommand(event, cardService, nameCache, panelGroups))
+  bot.on('message.group.at', async (event) => handleGroupCommand(event, cardService, nameCache, panelGroups, matchReports, reporter))
   return bot
 }
 
@@ -50,7 +52,7 @@ async function configureCommandPanel(panelGroups: PanelGroupRegistry): Promise<v
   await new QqOfficialPanelClient(config.qqBot.appid, config.qqBot.secret).synchronizeGroupPanel(panel, groupOpenids)
 }
 
-export async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry): Promise<void> {
+export async function handleGroupCommand(event: GroupMessageEvent, cardService: PlayerCardService, nameCache: QqNameCache, panelGroups: PanelGroupRegistry, matchReports: MatchReportRegistry, reporter: MatchReporter): Promise<void> {
   const parsed = parseGroupCommand(event.raw_message)
   if (!parsed) return
   try {
@@ -60,14 +62,32 @@ export async function handleGroupCommand(event: GroupMessageEvent, cardService: 
     }
 
     if (parsed.command === config.qqBot.commands.add) {
-      const added = await panelGroups.add(event.group_id)
-      if (added) {
-        await event.reply('当前群已加入指令面板配置，机器人重启后生效。')
-      } else {
-        await event.reply('当前群已经在指令面板配置中。')
+      if (!parsed.name) {
+        await event.reply(`用法：${config.qqBot.commandPrefix}${config.qqBot.commands.add} 场所ID`)
+        return
       }
+      const added = await matchReports.add(event.group_id, parsed.name, event.user_id)
+      if (!added) {
+        await event.reply('本群已配置对局报告。')
+        return
+      }
+      await panelGroups.add(event.group_id)
+      await event.reply(`已配置雀庄 ${parsed.name}；你已成为管理员。`)
       return
     }
+    if (parsed.command === config.qqBot.commands.admin || parsed.command === config.qqBot.commands.start || parsed.command === config.qqBot.commands.stop) {
+      if (!matchReports || !reporter || !await matchReports.isAdmin(event.group_id, event.user_id)) return
+      if (parsed.command === config.qqBot.commands.admin) {
+        if (!parsed.name) { await event.reply(`用法：${config.qqBot.commandPrefix}${config.qqBot.commands.admin} 用户ID`); return }
+        await event.reply(await matchReports.addAdmin(event.group_id, parsed.name) ? '已添加管理员。' : '该用户已是管理员。')
+        return
+      }
+      if (parsed.command === config.qqBot.commands.start) { await reporter.begin(event.group_id); await event.reply('对局报告已启动。'); return }
+      await reporter.end(event.group_id)
+      await event.reply('对局报告已停止。')
+      return
+    }
+
     if (parsed.command === config.qqBot.commands.bind) {
       if (!parsed.name) {
         await event.reply(`用法：${config.qqBot.commandPrefix}${config.qqBot.commands.bind} 玩家名`)

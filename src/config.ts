@@ -11,6 +11,8 @@ export const config = {
   },
   qqBot: {
     panelGroupsFile: resolve(process.env.QQ_BOT_PANEL_GROUPS_FILE ?? 'data/qq-panel-groups.json'),
+    matchReportsFile: resolve(process.env.QQ_BOT_MATCH_REPORTS_FILE ?? 'data/qq-match-reports.json'),
+    matchReportIntervalMs: Math.max(1_000, Number(process.env.QQ_BOT_MATCH_REPORT_INTERVAL_MS ?? 30_000)),
     publicBaseUrl: process.env.QQ_BOT_PUBLIC_BASE_URL ?? '',
     enabled: (process.env.QQ_BOT_ENABLED ?? 'false').toLowerCase() === 'true',
     appid: process.env.QQ_BOT_APPID ?? '',
@@ -38,6 +40,9 @@ export const config = {
     },
     commands: {
       add: 'add',
+      admin: 'admin',
+      start: 'start',
+      stop: 'stop',
       help: 'help',
       bind: 'bind',
       card: 'card',

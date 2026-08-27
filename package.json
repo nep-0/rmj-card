@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "tsx test/render-card.ts && tsx test/qqofficial-panel.ts",
+    "test": "tsx test/render-card.ts && tsx test/qqofficial-panel.ts && tsx test/qq-cache-and-opponents.ts && tsx test/qq-help.ts && tsx test/match-reporter.ts",
     "dev": "tsx src/server.ts",
     "build": "tsc --noEmit",
     "start": "tsx src/server.ts"
