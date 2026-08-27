@@ -34,7 +34,7 @@ app.get<{ Params: { name: string; format: 'png' | 'svg' }; Querystring: { style?
     return reply
       .type(format === 'png' ? 'image/png' : 'image/svg+xml')
       .header('Content-Disposition', `inline; filename="${encodeURIComponent(name)}-${style}-formula-card.${extension}"`)
-      .header('Cache-Control', 'private, max-age=300')
+      .header('Cache-Control', 'public, max-age=300')
       .send(image)
   } catch (error) {
     request.log.error(error)

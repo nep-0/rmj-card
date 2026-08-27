@@ -29,9 +29,16 @@ export function isCardStyle(value: string): value is CardStyle {
 }
 
 export class PlayerCardService {
+  private readonly renderCache = new Map<string, { image: Buffer; expiresAt: number }>()
+  private readonly renderCacheTtlMs = 5 * 60 * 1000
+
   constructor(private readonly formula: FormulaClient) {}
 
   async render(name: string, format: 'png' | 'svg', style: CardStyle = 'modern'): Promise<Buffer> {
+    const cacheKey = `${name}\0${format}\0${style}`
+    const cached = this.renderCache.get(cacheKey)
+    if (cached && cached.expiresAt > Date.now()) return cached.image
+    this.renderCache.delete(cacheKey)
     if (name.trim().length === 0) throw new Error('Player name must not be empty')
     const historyResult = await this.formula.getHistory(name)
     const history = historyResult.history
@@ -64,7 +71,9 @@ export class PlayerCardService {
       recentPoints: historyPoints,
     }
     const svg = await this.renderStyleSvg(model, style)
-    return format === 'svg' ? Buffer.from(svg) : sharp(Buffer.from(svg)).png().toBuffer()
+    const image = format === 'svg' ? Buffer.from(svg) : await sharp(Buffer.from(svg)).png().toBuffer()
+    this.renderCache.set(cacheKey, { image, expiresAt: Date.now() + this.renderCacheTtlMs })
+    return image
   }
 
   async renderStatsText(name: string): Promise<string> {

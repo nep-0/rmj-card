@@ -124,6 +124,7 @@ export async function handleGroupCommand(event: GroupMessageEvent, cardService: 
     switch (parsed.command) {
       case config.qqBot.commands.card: {
         if (!config.qqBot.publicBaseUrl) throw new Error('QQ_BOT_PUBLIC_BASE_URL must be configured for card images')
+        await cardService.render(name, 'png', config.qqBot.style)
         const imageUrl = new URL(`/api/player-cards/${encodeURIComponent(name)}.png`, config.qqBot.publicBaseUrl)
         imageUrl.searchParams.set('style', config.qqBot.style)
         await event.reply(commandButtonMessage(`![我的战绩 #1280px #1100px](${imageUrl.toString()})`))
