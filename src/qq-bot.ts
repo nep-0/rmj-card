@@ -18,6 +18,14 @@ const helpText = [
   '/good [玩家名] - 查询好人榜',
   '/bad [玩家名] - 查询仇人榜',
 ].join('\n')
+function commandButtons() {
+  return segment.button({ buttons: [
+    { id: 'rmj-card', render_data: { label: '我的战绩', style: 1 }, action: { type: 2, data: '/card', enter: true, reply: false } },
+    { id: 'rmj-good', render_data: { label: '好人榜', style: 3 }, action: { type: 2, data: '/good', enter: true, reply: false } },
+    { id: 'rmj-bad', render_data: { label: '仇人榜', style: 2 }, action: { type: 2, data: '/bad', enter: true, reply: false } },
+  ] })
+}
+
 
 
 export function parseGroupCommand(rawMessage: string): CommandResult | undefined {
@@ -108,12 +116,12 @@ export async function handleGroupCommand(event: GroupMessageEvent, cardService: 
         if (!config.qqBot.publicBaseUrl) throw new Error('QQ_BOT_PUBLIC_BASE_URL must be configured for card images')
         const imageUrl = new URL(`/api/player-cards/${encodeURIComponent(name)}.png`, config.qqBot.publicBaseUrl)
         imageUrl.searchParams.set('style', config.qqBot.style)
-        await event.reply(segment.image(imageUrl.toString()))
+        await event.reply([segment.image(imageUrl.toString()), commandButtons()])
         return
       }
       case config.qqBot.commands.stats: await event.reply(await cardService.renderStatsText(name)); return
-      case config.qqBot.commands.goodOpponents: await event.reply(await cardService.renderGoodOpponentText(name)); return
-      case config.qqBot.commands.badOpponents: await event.reply(await cardService.renderBadOpponentText(name)); return
+      case config.qqBot.commands.goodOpponents: await event.reply([await cardService.renderGoodOpponentText(name), commandButtons()]); return
+      case config.qqBot.commands.badOpponents: await event.reply([await cardService.renderBadOpponentText(name), commandButtons()]); return
     }
   } catch (error) {
     await event.reply(error instanceof Error ? error.message : '查询失败，请稍后重试。')
