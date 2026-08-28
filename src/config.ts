@@ -1,3 +1,4 @@
+import { DEFAULT_CARD_CACHE_MAX_BYTES, DEFAULT_CARD_CACHE_MAX_ENTRIES } from './card-cache-config.js'
 import { resolve } from 'node:path'
 
 export const config = {
@@ -13,6 +14,8 @@ export const config = {
     panelGroupsFile: resolve(process.env.QQ_BOT_PANEL_GROUPS_FILE ?? 'data/qq-panel-groups.json'),
     matchReportsFile: resolve(process.env.QQ_BOT_MATCH_REPORTS_FILE ?? 'data/qq-match-reports.json'),
     matchReportIntervalMs: Math.max(1_000, Number(process.env.QQ_BOT_MATCH_REPORT_INTERVAL_MS ?? 30_000)),
+    cardCacheMaxEntries: Math.max(1, Number(process.env.QQ_BOT_CARD_CACHE_MAX_ENTRIES ?? DEFAULT_CARD_CACHE_MAX_ENTRIES)),
+    cardCacheMaxBytes: Math.max(1, Number(process.env.QQ_BOT_CARD_CACHE_MAX_BYTES ?? DEFAULT_CARD_CACHE_MAX_BYTES)),
     publicBaseUrl: process.env.QQ_BOT_PUBLIC_BASE_URL ?? '',
     enabled: (process.env.QQ_BOT_ENABLED ?? 'false').toLowerCase() === 'true',
     appid: process.env.QQ_BOT_APPID ?? '',

@@ -14,7 +14,7 @@ const nameCache = new QqNameCache(config.formula.qqNameCacheFile)
 const panelGroups = new PanelGroupRegistry(config.qqBot.panelGroupsFile)
 const matchReports = new MatchReportRegistry(config.qqBot.matchReportsFile)
 const formula = new FormulaClient(nameCache)
-const cardService = new PlayerCardService(formula)
+const cardService = new PlayerCardService(formula, config.qqBot.cardCacheMaxEntries, config.qqBot.cardCacheMaxBytes)
 const matchReporter = new MatchReporter(formula, matchReports, async (groupId, message) => {
   if (!qqBot) return
   await qqBot.group(groupId).send(message)

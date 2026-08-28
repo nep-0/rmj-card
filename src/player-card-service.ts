@@ -15,6 +15,7 @@ import {
   renderSummary,
   renderTrendChart,
 } from './components.js'
+import { DEFAULT_CARD_CACHE_MAX_BYTES, DEFAULT_CARD_CACHE_MAX_ENTRIES } from './card-cache-config.js'
 import { FormulaClient } from './formula-client.js'
 import type { PlayerCardModel } from './types.js'
 import { renderOpponentRanking, renderPlayerStats } from './text-renderer.js'
@@ -28,22 +29,32 @@ export function isCardStyle(value: string): value is CardStyle {
   return cardStyles.includes(value as CardStyle)
 }
 
+type CachedCard = { image: Buffer; expiresAt: number }
+
 export class PlayerCardService {
-  private readonly renderCache = new Map<string, { image: Buffer; expiresAt: number }>()
+  private readonly renderCache = new Map<string, CachedCard>()
+  private renderCacheBytes = 0
   private readonly renderCacheTtlMs = 5 * 60 * 1000
 
-  constructor(private readonly formula: FormulaClient) {}
+  constructor(
+    private readonly formula: FormulaClient,
+    private readonly renderCacheMaxEntries = DEFAULT_CARD_CACHE_MAX_ENTRIES,
+    private readonly renderCacheMaxBytes = DEFAULT_CARD_CACHE_MAX_BYTES,
+  ) {}
 
   async render(name: string, format: 'png' | 'svg', style: CardStyle = 'modern'): Promise<Buffer> {
     const cacheKey = `${name}\0${format}\0${style}`
     const cached = this.renderCache.get(cacheKey)
-    if (cached && cached.expiresAt > Date.now()) return cached.image
-    this.renderCache.delete(cacheKey)
+    if (cached && cached.expiresAt > Date.now()) {
+      this.renderCache.delete(cacheKey)
+      this.renderCache.set(cacheKey, cached)
+      return cached.image
+    }
+    if (cached) this.deleteCachedCard(cacheKey)
     if (name.trim().length === 0) throw new Error('Player name must not be empty')
     const historyResult = await this.formula.getHistory(name)
     const history = historyResult.history
     if (!history) throw new Error(`No Formula statistics found for ${name}`)
-
     const recordPage = await this.formula.getPlayerRecords(history.customerId, 1, 50)
     const avatarDataUri = historyResult.qq ? await this.fetchAvatar(historyResult.qq) : undefined
     const playerRecords = recordPage.records ?? []
@@ -73,7 +84,24 @@ export class PlayerCardService {
     const svg = await this.renderStyleSvg(model, style)
     const image = format === 'svg' ? Buffer.from(svg) : await sharp(Buffer.from(svg)).png().toBuffer()
     this.renderCache.set(cacheKey, { image, expiresAt: Date.now() + this.renderCacheTtlMs })
+    this.renderCacheBytes += image.byteLength
+    this.evictCachedCards(cacheKey)
     return image
+  }
+
+  private evictCachedCards(currentKey: string): void {
+    while ((this.renderCache.size > this.renderCacheMaxEntries || this.renderCacheBytes > this.renderCacheMaxBytes) && this.renderCache.size > 0) {
+      const oldestKey = this.renderCache.keys().next().value
+      if (oldestKey === undefined) break
+      this.deleteCachedCard(oldestKey)
+    }
+  }
+
+  private deleteCachedCard(key: string): void {
+    const cached = this.renderCache.get(key)
+    if (!cached) return
+    this.renderCacheBytes -= cached.image.byteLength
+    this.renderCache.delete(key)
   }
 
   async renderStatsText(name: string): Promise<string> {
