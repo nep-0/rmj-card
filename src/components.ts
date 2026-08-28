@@ -169,7 +169,7 @@ export async function renderRadarChart(model: PlayerCardModel): Promise<string> 
     stroke: { width: 2 },
     markers: { size: 3 },
     grid: { show: false, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
-    yaxis: { show: false },
+    yaxis: { show: false, min: 0, max: 1, tickAmount: 5 },
   }, { width: 570, height: 315 })
   return svg.replace(/<line\b[^>]*\/>/g, '')
 }
