@@ -153,15 +153,16 @@ export function renderQhRecentTiles(model: PlayerCardModel): string {
 }
 export async function renderRadarChart(model: PlayerCardModel): Promise<string> {
   const { history } = model
+  const clampRadarValue = (value: number) => Math.min(1, Math.max(0, value))
   const svg = await ApexCharts.renderToString({
     chart: { type: 'radar', height: 315, toolbar: { show: false }, animations: { enabled: false }, parentHeightOffset: 0 },
     series: [{ name: '能力', data: [
-      -1.0 * history.fire + 3.0,
-      0.000125 * history.attack + 0.375,
-      0.025 * history.technique + 0.5,
-      10.0 * history.luck - 2.0,
-      5.0 * history.stability - 2.0,
-      history.defense / 0.3 - 2.0,
+      clampRadarValue(-1.0 * history.fire + 3.0),
+      clampRadarValue(0.000125 * history.attack + 0.375),
+      clampRadarValue(0.025 * history.technique + 0.5),
+      clampRadarValue(10.0 * history.luck - 2.0),
+      clampRadarValue(5.0 * history.stability - 2.0),
+      clampRadarValue(history.defense / 0.3 - 2.0),
     ] }],
     labels: ['火力', '进攻', '技术', '运势', '稳定', '防守'],
     colors: [navy],
