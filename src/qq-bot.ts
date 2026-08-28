@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { Bot, ReceiverMode, segment, type GroupMessageEvent } from 'qq-official-bot'
 
 import { config } from './config.js'
@@ -124,9 +126,11 @@ export async function handleGroupCommand(event: GroupMessageEvent, cardService: 
     switch (parsed.command) {
       case config.qqBot.commands.card: {
         if (!config.qqBot.publicBaseUrl) throw new Error('QQ_BOT_PUBLIC_BASE_URL must be configured for card images')
-        await cardService.render(name, 'png', config.qqBot.style)
+        const image = await cardService.render(name, 'png', config.qqBot.style)
+        const imageHash = createHash('sha256').update(image).digest('hex').slice(0, 16)
         const imageUrl = new URL(`/api/player-cards/${encodeURIComponent(name)}.png`, config.qqBot.publicBaseUrl)
         imageUrl.searchParams.set('style', config.qqBot.style)
+        imageUrl.searchParams.set('v', imageHash)
         await event.reply(commandButtonMessage(`![我的战绩 #1280px #1100px](${imageUrl.toString()})`))
         return
       }
