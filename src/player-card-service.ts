@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import sharp from 'sharp'
+import { LRUCache } from 'lru-cache'
 
 import {
   renderIdentity,
@@ -29,28 +30,44 @@ export function isCardStyle(value: string): value is CardStyle {
   return cardStyles.includes(value as CardStyle)
 }
 
-type CachedCard = { image: Buffer; expiresAt: number }
-
 export class PlayerCardService {
-  private readonly renderCache = new Map<string, CachedCard>()
-  private renderCacheBytes = 0
+  private readonly renderCache: LRUCache<string, Buffer>
+  private readonly inFlightRenders = new Map<string, Promise<Buffer>>()
   private readonly renderCacheTtlMs = 5 * 60 * 1000
 
   constructor(
     private readonly formula: FormulaClient,
-    private readonly renderCacheMaxEntries = DEFAULT_CARD_CACHE_MAX_ENTRIES,
-    private readonly renderCacheMaxBytes = DEFAULT_CARD_CACHE_MAX_BYTES,
-  ) {}
+    renderCacheMaxEntries = DEFAULT_CARD_CACHE_MAX_ENTRIES,
+    renderCacheMaxBytes = DEFAULT_CARD_CACHE_MAX_BYTES,
+  ) {
+    this.renderCache = new LRUCache({
+      max: renderCacheMaxEntries,
+      maxSize: renderCacheMaxBytes,
+      ttl: this.renderCacheTtlMs,
+      sizeCalculation: (image) => image.byteLength,
+    })
+  }
 
   async render(name: string, format: 'png' | 'svg', style: CardStyle = 'modern'): Promise<Buffer> {
     const cacheKey = `${name}\0${format}\0${style}`
-    const cached = this.renderCache.get(cacheKey)
-    if (cached && cached.expiresAt > Date.now()) {
-      this.renderCache.delete(cacheKey)
-      this.renderCache.set(cacheKey, cached)
-      return cached.image
+    if (format === 'png') {
+      const cached = this.renderCache.get(cacheKey)
+      if (cached) return cached
     }
-    if (cached) this.deleteCachedCard(cacheKey)
+    const existing = this.inFlightRenders.get(cacheKey)
+    if (existing) return existing
+    const renderPromise = this.renderUncached(name, format, style)
+    this.inFlightRenders.set(cacheKey, renderPromise)
+    try {
+      const image = await renderPromise
+      if (format === 'png') this.renderCache.set(cacheKey, image)
+      return image
+    } finally {
+      this.inFlightRenders.delete(cacheKey)
+    }
+  }
+
+  private async renderUncached(name: string, format: 'png' | 'svg', style: CardStyle): Promise<Buffer> {
     if (name.trim().length === 0) throw new Error('Player name must not be empty')
     const historyResult = await this.formula.getHistory(name)
     const history = historyResult.history
@@ -58,50 +75,13 @@ export class PlayerCardService {
     const recordPage = await this.formula.getPlayerRecords(history.customerId, 1, 50)
     const avatarDataUri = historyResult.qq ? await this.fetchAvatar(historyResult.qq) : undefined
     const playerRecords = recordPage.records ?? []
-    const latestClubName = playerRecords
-      .filter((record) => record.mahjongName.trim().length > 0)
-      .sort((left, right) => right.logtime.localeCompare(left.logtime))[0]
-      ?.mahjongName
-    const recordPlacements = playerRecords
-      .map((record) => ({
-        logtime: record.logtime,
-        placement: [record.name1, record.name2, record.name3, record.name4].indexOf(history.name) + 1,
-      }))
-      .filter((record) => record.placement > 0)
-      .sort((left, right) => left.logtime.localeCompare(right.logtime))
-      .map((record) => record.placement)
+    const latestClubName = playerRecords.filter((record) => record.mahjongName.trim().length > 0).sort((left, right) => right.logtime.localeCompare(left.logtime))[0]?.mahjongName
+    const recordPlacements = playerRecords.map((record) => ({ logtime: record.logtime, placement: [record.name1, record.name2, record.name3, record.name4].indexOf(history.name) + 1 })).filter((record) => record.placement > 0).sort((left, right) => left.logtime.localeCompare(right.logtime)).map((record) => record.placement)
     const historyPlacements = history.recentlyPosition.split(',').filter(Boolean).map(Number).filter((value) => value >= 1 && value <= 4).reverse()
     const historyPoints = history.recentlyPoint.split(',').filter(Boolean).map(Number).reverse()
-    const recentPlacements = recordPlacements.length > 0 ? recordPlacements : historyPlacements
-    const model: PlayerCardModel = {
-      history,
-      qq: historyResult.qq,
-      avatarDataUri,
-      latestClubName,
-      recentPlacements,
-      recentPoints: historyPoints,
-    }
+    const model: PlayerCardModel = { history, qq: historyResult.qq, avatarDataUri, latestClubName, recentPlacements: recordPlacements.length > 0 ? recordPlacements : historyPlacements, recentPoints: historyPoints }
     const svg = await this.renderStyleSvg(model, style)
-    const image = format === 'svg' ? Buffer.from(svg) : await sharp(Buffer.from(svg)).png().toBuffer()
-    this.renderCache.set(cacheKey, { image, expiresAt: Date.now() + this.renderCacheTtlMs })
-    this.renderCacheBytes += image.byteLength
-    this.evictCachedCards(cacheKey)
-    return image
-  }
-
-  private evictCachedCards(currentKey: string): void {
-    while ((this.renderCache.size > this.renderCacheMaxEntries || this.renderCacheBytes > this.renderCacheMaxBytes) && this.renderCache.size > 0) {
-      const oldestKey = this.renderCache.keys().next().value
-      if (oldestKey === undefined) break
-      this.deleteCachedCard(oldestKey)
-    }
-  }
-
-  private deleteCachedCard(key: string): void {
-    const cached = this.renderCache.get(key)
-    if (!cached) return
-    this.renderCacheBytes -= cached.image.byteLength
-    this.renderCache.delete(key)
+    return format === 'svg' ? Buffer.from(svg) : sharp(Buffer.from(svg)).png().toBuffer()
   }
 
   async renderStatsText(name: string): Promise<string> {
