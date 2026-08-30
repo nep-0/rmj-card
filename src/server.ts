@@ -74,7 +74,8 @@ app.get<{ Params: { name: string } }>('/api/player-opponents/bad/:name.txt', asy
 
 app.get('/health', async () => ({ status: 'ok' }))
 
+app.addHook('onClose', async () => { matchReporter.stop() })
+
 await app.listen({ port: config.server.port, host: config.server.host })
 await startQqBot(qqBot, panelGroups)
 matchReporter.start()
-app.addHook('onClose', async () => { matchReporter.stop() })

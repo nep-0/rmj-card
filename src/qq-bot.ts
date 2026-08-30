@@ -20,22 +20,25 @@ const helpText = [
   '/good [玩家名] - 查询好人榜',
   '/bad [玩家名] - 查询仇人榜',
 ].join('\n')
-function commandButtons() {
+function commandButtons(includeBind = false) {
   const action = (data: string) => ({ type: 2, data, enter: true, reply: false, unsupport_tips: '请发送此指令' })
   const button = (id: string, label: string, data: string, style: number) => ({
     id,
     render_data: { label, visited_label: label, style },
     action: { ...action(data), permission: { type: 2 } },
   })
-  return segment.button({ buttons: [
-    button('rmj-card', '我的战绩', '/card', 1),
-    button('rmj-good', '好人榜', '/good', 3),
-    button('rmj-bad', '仇人榜', '/bad', 2),
-  ] })
+  const buttons = includeBind
+    ? [button('rmj-bind', '绑定公式战', '/bind ', 1)]
+    : [
+      button('rmj-card', '我的战绩', '/card', 1),
+      button('rmj-good', '好人榜', '/good', 3),
+      button('rmj-bad', '仇人榜', '/bad', 0),
+    ]
+  return segment.button({ buttons })
 }
 
-function commandButtonMessage(content: string) {
-  return [segment.markdown(content), commandButtons()]
+function commandButtonMessage(content: string, includeBind = false) {
+  return [segment.markdown(content), commandButtons(includeBind)]
 }
 
 
@@ -114,13 +117,13 @@ export async function handleGroupCommand(event: GroupMessageEvent, cardService: 
         return
       }
       await nameCache.remember(event.user_id, parsed.name)
-      await event.reply(`已将 QQ ${event.user_id} 绑定到玩家「${parsed.name}」。`)
+      await event.reply(commandButtonMessage(`已将 QQ ${event.user_id} 绑定到玩家「${parsed.name}」。`))
       return
     }
 
     const name = parsed.name ?? await nameCache.getName(event.user_id)
     if (!name) {
-      await event.reply(`未找到你的玩家名称，请使用 ${config.qqBot.commandPrefix}${parsed.command} 玩家名 查询。`)
+      await event.reply(commandButtonMessage(`未找到你的玩家名称，请使用 ${config.qqBot.commandPrefix}${parsed.command} 玩家名 查询。`, true))
       return
     }
     switch (parsed.command) {
