@@ -33,7 +33,7 @@ export interface PlayerRecord {
   id: string
   recordId: string
   mahjongId: string
-  mahjongName: string
+  mahjongName: string | null
   name1: string
   point1: number
   name2: string

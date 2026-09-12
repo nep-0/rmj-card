@@ -23,6 +23,11 @@ const qhSvg = await new PlayerCardService({
   getHistory: async () => ({ history: qhHistory }),
   getPlayerRecords: async () => ({ records: [] }),
 } as never).render('邀月', 'svg', 'QH')
+const nullClubNameSvg = await new PlayerCardService({
+  getHistory: async () => ({ history: qhHistory }),
+  getPlayerRecords: async () => ({ records: [{ mahjongName: null }] }),
+} as never).render('四十二', 'svg')
+if (!nullClubNameSvg.includes('最近顺位数据')) throw new Error('Expected rendering to tolerate null club name')
 if (!qhSvg.includes('最近顺位数据') || !qhSvg.includes('>443</text>') || !qhSvg.includes('>1</text>')) {
   throw new Error('Expected reversed QH history-only position and point tiles')
 }

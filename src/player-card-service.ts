@@ -75,7 +75,7 @@ export class PlayerCardService {
     const recordPage = await this.formula.getPlayerRecords(history.customerId, 1, 50)
     const avatarDataUri = historyResult.qq ? await this.fetchAvatar(historyResult.qq) : undefined
     const playerRecords = recordPage.records ?? []
-    const latestClubName = playerRecords.filter((record) => record.mahjongName.trim().length > 0).sort((left, right) => right.logtime.localeCompare(left.logtime))[0]?.mahjongName
+    const latestClubName = playerRecords.filter((record) => (record.mahjongName?.trim().length ?? 0) > 0).sort((left, right) => right.logtime.localeCompare(left.logtime))[0]?.mahjongName ?? undefined
     const recordPlacements = playerRecords.map((record) => ({ logtime: record.logtime, placement: [record.name1, record.name2, record.name3, record.name4].indexOf(history.name) + 1 })).filter((record) => record.placement > 0).sort((left, right) => left.logtime.localeCompare(right.logtime)).map((record) => record.placement)
     const historyPlacements = history.recentlyPosition.split(',').filter(Boolean).map(Number).filter((value) => value >= 1 && value <= 4).reverse()
     const historyPoints = history.recentlyPoint.split(',').filter(Boolean).map(Number).reverse()
